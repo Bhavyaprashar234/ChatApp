@@ -32,39 +32,41 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void logIn(String email, String password) async {
-    UserCredential? credential;
-
     UIHelper.showLoadingDialog(context, "Logging In..");
 
     try {
-      credential = await FirebaseAuth.instance.signInWithEmailAndPassword(email: email, password: password);
-    } on FirebaseAuthException catch(ex) {
-      // Close the loading dialog
-      Navigator.pop(context);
+      UserCredential credential = await FirebaseAuth.instance.signInWithEmailAndPassword(email: email, password: password);
 
-      // Show Alert Dialog
-      UIHelper.showAlertDialog(context, "An error occured", ex.message.toString());
-    }
-
-    if(credential != null) {
+      // Fetch user data
       String uid = credential.user!.uid;
-
       DocumentSnapshot userData = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+
+      if (!userData.exists) {
+        Navigator.pop(context); // Close dialog
+        UIHelper.showAlertDialog(context, "User Not Found", "No user data found in database.");
+        return;
+      }
+
       UserModel userModel = UserModel.fromMap(userData.data() as Map<String, dynamic>);
 
       // Go to HomePage
-      print("Log In Successful!");
-      Navigator.popUntil(context, (route) => route.isFirst);
+      Navigator.popUntil(context, (route) => route.isFirst); // Close loading and all other pages
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-            builder: (context) {
-              return HomePage(userModel: userModel, firebaseUser: credential!.user!);
-            }
+          builder: (context) => HomePage(userModel: userModel, firebaseUser: credential.user!),
         ),
       );
+    } on FirebaseAuthException catch (ex) {
+      Navigator.pop(context); // Close loading dialog
+      UIHelper.showAlertDialog(context, "Login Failed", ex.message ?? "Unknown error occurred");
+    } catch (e) {
+      Navigator.pop(context); // Ensure the dialog is closed
+      UIHelper.showAlertDialog(context, "Error", "Something went wrong. Please try again later.");
+      print("Login error: $e");
     }
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -140,7 +142,7 @@ class _LoginPageState extends State<LoginPage> {
                 );
               },
               child: Text("Sign Up", style: TextStyle(
-                  fontSize: 16,),
+                fontSize: 16,),
               ),
             ),
 

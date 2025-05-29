@@ -15,23 +15,24 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
-  User? currentUser = FirebaseAuth.instance.currentUser;
-  if(currentUser != null) {
-    // Logged In
-    UserModel? thisUserModel = await FirebaseHelper.getUserModelById(currentUser.uid);
-    if(thisUserModel != null) {
-      runApp(MyAppLoggedIn(userModel: thisUserModel, firebaseUser: currentUser));
-    }
-    else {
+  try {
+    User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      UserModel? thisUserModel = await FirebaseHelper.getUserModelById(currentUser.uid);
+      if (thisUserModel != null) {
+        runApp(MyAppLoggedIn(userModel: thisUserModel, firebaseUser: currentUser));
+      } else {
+        runApp(MyApp());
+      }
+    } else {
       runApp(MyApp());
     }
-  }
-  else {
-    // Not logged in
-    runApp(MyApp());
+  } catch (e, stack) {
+    print("🔥 Error in main(): $e");
+    print(stack);
+    runApp(MyApp()); // Fall back to login
   }
 }
-
 // Not Logged In
 class MyApp extends StatelessWidget {
   const MyApp({ Key? key }) : super(key: key);

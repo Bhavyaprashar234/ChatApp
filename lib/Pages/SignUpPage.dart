@@ -36,41 +36,50 @@ class _SignUpPageState extends State<SignUpPage> {
   }
 
   void signUp(String email, String password) async {
-    UserCredential? credential;
-
-    UIHelper.showLoadingDialog(context, "Creating new account..");
+    UIHelper.showLoadingDialog(context, "Creating new account...");
 
     try {
-      credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(email: email, password: password);
-    } on FirebaseAuthException catch(ex) {
-      Navigator.pop(context);
+      UserCredential credential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(email: email, password: password);
 
-      UIHelper.showAlertDialog(context, "An error occured", ex.message.toString());
-    }
+      if (credential.user != null) {
+        String uid = credential.user!.uid;
 
-    if(credential != null) {
-      String uid = credential.user!.uid;
-      UserModel newUser = UserModel(
+        UserModel newUser = UserModel(
           uid: uid,
           email: email,
           fullname: "",
-          profilepic: ""
-      );
-      await FirebaseFirestore.instance.collection("users").doc(uid).set(newUser.toMap()).then((value) {
-        print("New User Created!");
+          profilepic: "",
+        );
+
+        // Save to Firestore
+        await FirebaseFirestore.instance
+            .collection("users")
+            .doc(uid)
+            .set(newUser.toMap());
+
         Navigator.popUntil(context, (route) => route.isFirst);
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-              builder: (context) {
-                return CompleteProfile(userModel: newUser, firebaseUser: credential!.user!);
-              }
+            builder: (context) =>
+                CompleteProfile(userModel: newUser, firebaseUser: credential.user!),
           ),
         );
-      });
+      } else {
+        Navigator.pop(context);
+        UIHelper.showAlertDialog(context, "Signup Failed", "User creation failed.");
+      }
+    } on FirebaseAuthException catch (ex) {
+      Navigator.pop(context);
+      UIHelper.showAlertDialog(context, "Signup Error", ex.message ?? "An unknown error occurred.");
+    } catch (e) {
+      Navigator.pop(context);
+      UIHelper.showAlertDialog(context, "Unexpected Error", e.toString());
+      print("Signup error: $e");
     }
-
   }
+
 
 
   @override
